@@ -99,5 +99,10 @@ jobs:
       - name: Nadanie tagu latest obu zweryfikowanym obrazom (bez pobierania warstw)
         run: |
           OWNER="${GITHUB_REPOSITORY_OWNER,,}"
-          docker buildx imagetools create -t "ghcr.io/$OWNER/breach-checker-backend:latest" "ghcr.io/$OWNER/breach-checker-backend:$GITHUB_SHA"
-          docker buildx imagetools create -t "ghcr.io/$OWNER/breach-checker-frontend:latest" "ghcr.io/$OWNER/breach-checker-frontend:$GITHUB_SHA"
+          docker pull "ghcr.io/$OWNER/breach-checker-backend:$GITHUB_SHA"
+          docker tag "ghcr.io/$OWNER/breach-checker-backend:$GITHUB_SHA" "ghcr.io/$OWNER/breach-checker-backend:latest"
+          docker push "ghcr.io/$OWNER/breach-checker-backend:latest"
+
+          docker pull "ghcr.io/$OWNER/breach-checker-frontend:$GITHUB_SHA"
+          docker tag "ghcr.io/$OWNER/breach-checker-frontend:$GITHUB_SHA" "ghcr.io/$OWNER/breach-checker-frontend:latest"
+          docker push "ghcr.io/$OWNER/breach-checker-frontend:latest"
