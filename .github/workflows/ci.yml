@@ -42,16 +42,31 @@ jobs:
       - name: Budowanie obrazu produkcyjnego
         run: docker build -t "$IMAGE:$GITHUB_SHA" -t "$IMAGE:latest" backend
       - name: Publikacja
-        run: docker push --all-tags "$IMAGE"
+        run: docker push "$IMAGE:$GITHUB_SHA"
+  
+  build-frontend:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Nazwa obrazu frontendu
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/breach-checker-frontend" >> "$GITHUB_ENV"
+      - name: Logowanie do GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Budowanie obrazu produkcyjnego frontendu (z etapem lint)
+        run: docker build -t "$IMAGE:$GITHUB_SHA" frontend
+      - name: Publikacja frontendu (tylko tag commita)
+        run: docker push "$IMAGE:$GITHUB_SHA"
 
   verify:
-    needs: build-and-push
+    needs: [build-and-push, build-frontend]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: read
     env:
-      # Bez docker-compose.override.yml (konfiguracja produkcyjna) + backend z rejestru
       COMPOSE_FILE: docker-compose.yml:docker-compose.ci.yml
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -72,3 +87,17 @@ jobs:
       - name: Logi przy błędzie
         if: failure()
         run: docker compose logs
+
+  promote:
+    needs: verify
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+      - name: Logowanie do GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Nadanie tagu latest obu zweryfikowanym obrazom (bez pobierania warstw)
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          docker buildx imagetools create -t "ghcr.io/$OWNER/breach-checker-backend:latest" "ghcr.io/$OWNER/breach-checker-backend:$GITHUB_SHA"
+          docker buildx imagetools create -t "ghcr.io/$OWNER/breach-checker-frontend:latest" "ghcr.io/$OWNER/breach-checker-frontend:$GITHUB_SHA"

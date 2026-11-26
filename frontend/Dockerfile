@@ -7,6 +7,7 @@ RUN htmlhint index.html
 
 # --- Etap 2: obraz końcowy - sam nginx i pliki strony ---
 FROM nginx:alpine
+LABEL org.opencontainers.image.source="https://github.com/333alibaba/breach-checker"
 LABEL maintainer="anatola_dwornik"
 COPY --from=lint /site/ /usr/share/nginx/html/
 COPY nginx.conf /etc/nginx/conf.d/default.conf
